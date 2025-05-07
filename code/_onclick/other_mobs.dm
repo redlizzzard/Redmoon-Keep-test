@@ -430,71 +430,87 @@
 					var/thiefskill = src.mind.get_skill_level(/datum/skill/misc/stealing)
 					var/stealroll = roll("[thiefskill]d6")
 					var/targetperception = (V.STAPER)
-					var/list/stealablezones = list("chest", "neck", "groin", "r_hand", "l_hand")
+					var/list/stealablezones = list("chest", "neck", "groin", "r_hand", "l_hand", "r_arm", "l_arm", "r_leg", "l_leg")  // REDMOON ADD - steal_update - выбор рук и ног, чтобы выбирать правый или левый слот спины/пояса
 					var/list/stealpos = list()
 					var/list/mobsbehind = list()
 					var/exp_to_gain = STAINT
 					to_chat(src, span_notice("I try to steal from [V]..."))
-					if(do_after(src, 5, target = V, progress = 0))
-						if(stealroll > targetperception)
-						//TODO add exp here
-							// RATWOOD MODULAR START
-							if(V.cmode)
-								to_chat(src, "<span class='warning'>[V] is alert. I can't pickpocket them like this.</span>")
-								return
-							// RATWOOD MODULAR END
-							if(U.get_active_held_item())
-								to_chat(src, span_warning("I can't pickpocket while my hand is full!"))
-								return
-							if(!(zone_selected in stealablezones))
-								to_chat(src, span_warning("What am I going to steal from there?"))
-								return
-							mobsbehind |= cone(V, list(turn(V.dir, 180)), list(src))
-							if(mobsbehind.Find(src))
-								switch(U.zone_selected)
-									if("chest")
-										if (V.get_item_by_slot(SLOT_BACK_L))
-											stealpos.Add(V.get_item_by_slot(SLOT_BACK_L))
-										if (V.get_item_by_slot(SLOT_BACK_R))
-											stealpos.Add(V.get_item_by_slot(SLOT_BACK_R))
-									if("neck")
-										if (V.get_item_by_slot(SLOT_NECK))
-											stealpos.Add(V.get_item_by_slot(SLOT_NECK))
-									if("groin")
-										if (V.get_item_by_slot(SLOT_BELT_R))
-											stealpos.Add(V.get_item_by_slot(SLOT_BELT_R))
-										if (V.get_item_by_slot(SLOT_BELT_L))
-											stealpos.Add(V.get_item_by_slot(SLOT_BELT_L))
-									if("r_hand", "l_hand")
-										if (V.get_item_by_slot(SLOT_RING))
-											stealpos.Add(V.get_item_by_slot(SLOT_RING))
-								if (length(stealpos) > 0)
-									var/obj/item/picked = pick(stealpos)
-									V.dropItemToGround(picked)
-									put_in_active_hand(picked, silent = TRUE)
-									to_chat(src, span_green("I stole [picked]!"))
-									V.log_message("has had \the [picked] stolen by [key_name(U)]", LOG_ATTACK, color="black")
-									U.log_message("has stolen \the [picked] from [key_name(V)]", LOG_ATTACK, color="black")
-								else
-									exp_to_gain /= 2 // these can be removed or changed on reviewer's discretion
-									to_chat(src, span_warning("I didn't find anything there. Perhaps I should look elsewhere."))
-							else
-								to_chat(src, "<span class='warning'>They can see me!")
-						if(stealroll <= 5)
-							V.log_message("has had an attempted pickpocket by [key_name(U)]", LOG_ATTACK, color="black")
-							U.log_message("has attempted to pickpocket [key_name(V)]", LOG_ATTACK, color="black")
-							U.visible_message(span_danger("[U] failed to pickpocket [V]!"))
-							to_chat(V, span_danger("[U] tried pickpocketing me!"))
-						if(stealroll < targetperception)
-							V.log_message("has had an attempted pickpocket by [key_name(U)]", LOG_ATTACK, color="black")
-							U.log_message("has attempted to pickpocket [key_name(V)]", LOG_ATTACK, color="black")
-							to_chat(src, span_danger("I failed to pick the pocket!"))
-							to_chat(V, span_danger("Someone tried pickpocketing me!"))
-							exp_to_gain /= 5 // these can be removed or changed on reviewer's discretion
-						// If we're pickpocketing someone else, and that person is conscious, grant XP
-						if(src != V && V.stat == CONSCIOUS)
-							mind.add_sleep_experience(/datum/skill/misc/stealing, exp_to_gain, FALSE)
-						changeNext_move(mmb_intent.clickcd)
+					mobsbehind |= cone(V, list(turn(V.dir, 180)), list(src))  // REDMOON ADD - steal_update - возможность воровать перед лицом, но с минусом к шансу кражи
+					if(mobsbehind.Find(src))
+						stealroll -= roll("d5")
+					if(!(zone_selected in stealablezones))
+						to_chat(src, span_warning("What am I going to steal from there?"))
+						return
+					if(U.get_active_held_item())
+						to_chat(src, span_warning("I can't pickpocket while my hand is full!"))
+						return
+					// REDMOON ADD - steal_update - мгновенные кражи, без ожидания целых 5 секунд
+					if(stealroll > targetperception || V.IsSleeping())
+					//TODO add exp here
+						// RATWOOD MODULAR START
+						if(V.cmode)
+							to_chat(src, "<span class='warning'>[V] is alert. I can't pickpocket them like this.</span>")
+							return
+						// RATWOOD MODULAR END
+						switch(U.zone_selected)
+							if("chest")
+								if (V.get_item_by_slot(SLOT_BACK_L))
+									stealpos.Add(V.get_item_by_slot(SLOT_BACK_L))
+								if (V.get_item_by_slot(SLOT_BACK_R))
+									stealpos.Add(V.get_item_by_slot(SLOT_BACK_R))
+							if("neck")
+								if (V.get_item_by_slot(SLOT_NECK))
+									stealpos.Add(V.get_item_by_slot(SLOT_NECK))
+							if("groin")
+								if (V.get_item_by_slot(SLOT_BELT_R))
+									stealpos.Add(V.get_item_by_slot(SLOT_BELT_R))
+								if (V.get_item_by_slot(SLOT_BELT_L))
+									stealpos.Add(V.get_item_by_slot(SLOT_BELT_L))
+							if("r_hand", "l_hand")
+								if (V.get_item_by_slot(SLOT_RING))
+									stealpos.Add(V.get_item_by_slot(SLOT_RING))
+							if("r_arm")  // REDMOON ADD - steal_update - выбор рук и ног, чтобы выбирать правый или левый слот спины/пояса
+								if (V.get_item_by_slot(SLOT_BACK_R))
+									stealpos.Add(V.get_item_by_slot(SLOT_BACK_R))
+							if("l_arm")  // REDMOON ADD - steal_update - выбор рук и ног, чтобы выбирать правый или левый слот спины/пояса
+								if (V.get_item_by_slot(SLOT_BACK_L))
+									stealpos.Add(V.get_item_by_slot(SLOT_BACK_L))
+							if("r_leg")  // REDMOON ADD - steal_update - выбор рук и ног, чтобы выбирать правый или левый слот спины/пояса
+								if (V.get_item_by_slot(SLOT_BELT_R))
+									stealpos.Add(V.get_item_by_slot(SLOT_BELT_R))
+							if("l_leg")  // REDMOON ADD - steal_update - выбор рук и ног, чтобы выбирать правый или левый слот спины/пояса
+								if (V.get_item_by_slot(SLOT_BELT_L))
+									stealpos.Add(V.get_item_by_slot(SLOT_BELT_L))
+						if (length(stealpos) > 0)
+							var/obj/item/picked = pick(stealpos)
+							V.dropItemToGround(picked)
+							put_in_active_hand(picked, silent = TRUE)
+							to_chat(src, span_green("I stole [picked]!"))
+							V.log_message("has had \the [picked] stolen by [key_name(U)]", LOG_ATTACK, color="black")
+							U.log_message("has stolen \the [picked] from [key_name(V)]", LOG_ATTACK, color="black")
+						else
+							exp_to_gain /= 2 // these can be removed or changed on reviewer's discretion
+							to_chat(src, span_warning("I didn't find anything there. Perhaps I should look elsewhere."))
+					else if(stealroll <= 5)
+						V.log_message("has had an attempted pickpocket by [key_name(U)]", LOG_ATTACK, color="black")
+						U.log_message("has attempted to pickpocket [key_name(V)]", LOG_ATTACK, color="black")
+						U.visible_message(span_danger("[U] failed to pickpocket [V]!"))
+						to_chat(V, span_danger("[U] tried pickpocketing me!"))
+					else if(stealroll < targetperception - roll("d5"))
+						V.log_message("has had an attempted pickpocket by [key_name(U)]", LOG_ATTACK, color="black")
+						U.log_message("has attempted to pickpocket [key_name(V)]", LOG_ATTACK, color="black")
+						to_chat(src, span_danger("I failed to pick the pocket!"))
+						to_chat(V, span_danger("Someone tried pickpocketing me!"))
+						exp_to_gain /= 5 // these can be removed or changed on reviewer's discretion
+					// If we're pickpocketing someone else, and that person is conscious, grant XP
+					else if(stealroll <= targetperception)  // REDMOON ADD - steal_update - попытку воровства могут на заметить даже в случае провала
+						V.log_message("has had an attempted pickpocket by [key_name(U)]", LOG_ATTACK, color="black")
+						U.log_message("has attempted to pickpocket [key_name(V)]", LOG_ATTACK, color="black")
+						to_chat(src, span_danger("I failed to pick the pocket! But it seems no one noticed the attempted theft..."))
+						exp_to_gain /= 5
+					if(src != V && V.stat == CONSCIOUS)
+						mind.add_sleep_experience(/datum/skill/misc/stealing, exp_to_gain, FALSE)
+					changeNext_move(mmb_intent.clickcd)
 				return
 			if(INTENT_SPELL)
 				if(ranged_ability?.InterceptClickOn(src, params, A))
